@@ -14,6 +14,10 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" integrity="sha512-xodZBNTC5n17Xt2atTPuE1HxjVMSvLVW9ocqUKLsCC5CXdbqCmblAshOMAS6/keqq/sMZMZ19scR4PsZChSR7A==" crossorigin=""/>
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js" integrity="sha512-XQoYMqMTK8LvdxXYG3nZ448hOEQiglfqkJs1NOQV44cWnUrBc8PkAOcXy20w0vlaXaVUearIOBhiXZ5V3ynxwA==" crossorigin=""></script>
 	
+    <!-- cheap-ruler -->
+    <script src="https://unpkg.com/cheap-ruler@3.0.1/cheap-ruler.js"></script>
+
+
     <style>
         body {
             padding: 0;
@@ -60,6 +64,28 @@
     function showImage(e) {
         var imageUrl = e.target.options.url;
         camControl.update(imageUrl);
+
+        // Draw triangle
+        const latLng = this.getLatLng();
+        drawSightTriangle(latLng.lat, latLng.lng, e.target.options.direction);
+    }
+
+    function drawSightTriangle(lat, lng, dir) {
+        if (dir != -1) {
+            // Direction exists
+            const ruler = new CheapRuler(lat, 'kilometers');
+            const DISTANCE = 0.5;
+
+            var origin = [lat, lng];
+            const firstPoint = ruler.destination(origin.slice().reverse(), DISTANCE, (dir + 25) % 360).reverse();
+            const secondPoint = ruler.destination(origin.slice().reverse(), DISTANCE, (dir - 25) % 360).reverse();
+
+            triangle.setLatLngs([origin, firstPoint, secondPoint]);
+            triangle.bringToFront();
+        } else {
+            // No direction
+            triangle.setLatLngs([[1000, 1000], [1000, 1000]]);
+        }
     }
 
     function highlightMarker(e) {
@@ -77,13 +103,16 @@
 
     cameraMarker = L.CircleMarker.extend({
         options: {
-            url: 'url'
+            url: 'url',
+            direction: 0
         }
     });
 
     var map = L.map('map', { preferCanvas: true }).setView([62.3875, 16.325556], 5);
 
     var myRenderer = L.canvas({ padding: 0.5 });
+
+    var triangle = L.polygon([[1000,1000],[1000,1000]], {color: 'black'}).addTo(map);
 
     cameraList.forEach(camera => {
         var latLng = [camera.lat, camera.lon];
@@ -93,7 +122,8 @@
             title: 'Click to view camera',
             color: STANDARD_COLOR,
             renderer: myRenderer,
-            url: camera.url
+            url: camera.url,
+            direction: camera.dir
         }).bindTooltip(camera.name).addTo(map);
             
         /*
